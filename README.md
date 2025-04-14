@@ -1,0 +1,180 @@
+#include <NewPing.h>
+int rightMotorSpeed = 11;
+int RF = 10;
+int RB = 9;
+int LF = 8;
+int LB = 7;
+int leftMotorSpeed = 6;
+const int MAX_SPEED = 160; // Maximum motor speed
+const int TURN_SPEED =200; // Speed for turns
+const int TURN_SPEED1 = 150; // Speed for slight turns
+
+// Line sensor pins
+int line1 = 2; // Leftmost sensor
+int line2 = 3; // Left center sensor
+int line3 = 4; // Right center sensor
+int line4 = 5; // Rightmost sensor
+
+int s1, s2, s3, s4; // Sensor readings
+int lastKnownState = 0; // Last detected line state: 1 = Left, 2 = Right, 3 = Forward, 0 = Stop
+// Ultrasonic pins
+const int TRIGGER_PIN = A2;
+const int ECHO_PIN = A3;
+const int MAX_DISTANCE = 600; // Maximum distance for the ultrasonic sensor
+
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
+
+void setup() {
+    // Initialize serial monitor
+    Serial.begin(9600);
+    
+    // Set motor pins as outputs
+    pinMode(rightMotorSpeed, OUTPUT);
+    pinMode(RF, OUTPUT);
+    pinMode(RB, OUTPUT);
+    pinMode(LF, OUTPUT);
+    pinMode(LB, OUTPUT);
+    pinMode(leftMotorSpeed, OUTPUT);
+    
+    // Set sensor pins as inputs
+    pinMode(line1, INPUT);
+    pinMode(line2, INPUT);
+    pinMode(line3, INPUT);
+    pinMode(line4, INPUT);
+}
+
+void loop() {
+
+    int distance = sonar.ping_cm();
+
+    // Stop if an object is detected within 20 cm
+    if (distance > 0 && distance < 20) 
+    {
+        stopMotors();
+        
+        return; // Exit the loop to avoid further actions
+    }
+        // Read sensor values
+    s1 = digitalRead(line1);
+    s2 = digitalRead(line2);
+    s3 = digitalRead(line3);
+    s4 = digitalRead(line4);
+    // Determine robot actions based on sensor readings
+    if (s1 == 0 && s2 == 0 && s3 == 0 && s4 == 0) {
+        // All sensors off-line -> Predict movement based on last known state
+        if (lastKnownState == 1) {
+            turnLeftSlight();
+        } 
+
+        else if (lastKnownState == 2) {
+            turnRightSlight();
+        } 
+        if (lastKnownState ==3 ) {
+            turnLeftSlight();
+        } 
+
+        else if (lastKnownState == 4) {
+            turnRightSlight();
+        } 
+        else {
+            stopMotors();
+        }
+    } else if (s1 == 1 && s2 == 0 && s3 == 0 && s4 == 0) {
+        // Strong left turn
+        turnLeftSharp();
+        lastKnownState = 3;
+    } else if (s1 == 1 && s2 == 1 && s3 == 1 && s4 == 1) {
+        // Strong left turn
+        stopMotors();
+    } else if (s1 == 1 && s2 == 1 && s3 == 0 && s4 == 0) {
+        // Strong left turn
+        turnLeftSharp();
+        lastKnownState = 3;
+    } else if (s1 == 1 && s2 == 1 && s3 == 1 && s4 == 0) {
+        // Strong left turn
+        turnLeftSharp();
+        lastKnownState = 3;
+    } else if (s1 == 0 && s2 == 1 && s3 == 0 && s4 == 0) {
+        // Slight left
+        turnLeftSlight();
+        lastKnownState = 1;
+    } else if (s1 == 0 && s2 == 0 && s3 == 1 && s4 == 0) {
+        // Slight right
+        turnRightSlight();
+        lastKnownState = 2;
+    } else if (s1 == 0 && s2 == 0 && s3 == 0 && s4 == 1) {
+        // Strong right turn
+        turnRightSharp();
+        lastKnownState = 4;
+    } else if (s1 == 0 && s2 == 0 && s3 == 1 && s4 == 1) {
+        // Strong right turn
+        turnRightSharp();
+        lastKnownState = 4;
+    } else if (s1 == 0 && s2 == 1 && s3 == 1 && s4 == 1) {
+        // Strong right turn
+        turnRightSharp();
+        lastKnownState = 4;
+    } else if ((s2 == 1 && s3 == 1) || (s2 == 1 && s3 == 1 && s1 == 0 && s4 == 0)) {
+        // Move forward if middle sensors detect the line
+        moveForward();
+    } else {
+        // Default to stop if no clear line detected
+        stopMotors();
+        lastKnownState = 0;
+    }
+}
+
+// Movement functions
+void moveForward() {
+    analogWrite(leftMotorSpeed, MAX_SPEED);
+    analogWrite(rightMotorSpeed, MAX_SPEED);
+    digitalWrite(RF, HIGH);
+    digitalWrite(RB, LOW);
+    digitalWrite(LF, HIGH);
+    digitalWrite(LB, LOW);
+}
+
+void stopMotors() {
+    analogWrite(leftMotorSpeed, 0);
+    analogWrite(rightMotorSpeed, 0);
+    digitalWrite(RF, LOW);
+    digitalWrite(RB, LOW);
+    digitalWrite(LF, LOW);
+    digitalWrite(LB, LOW);
+}
+
+void turnLeftSharp() {
+    analogWrite(leftMotorSpeed, 0);
+    analogWrite(rightMotorSpeed, TURN_SPEED);
+    digitalWrite(RF, HIGH);
+    digitalWrite(RB, LOW);
+    digitalWrite(LF, LOW);
+    digitalWrite(LB, HIGH);
+}
+
+void turnLeftSlight() {
+    analogWrite(leftMotorSpeed, 0);
+    analogWrite(rightMotorSpeed, TURN_SPEED1);
+    digitalWrite(RF, HIGH);
+    digitalWrite(RB, LOW);
+    digitalWrite(LF, HIGH);
+    digitalWrite(LB, LOW);
+}
+
+void turnRightSharp() {
+    analogWrite(leftMotorSpeed, TURN_SPEED);
+    analogWrite(rightMotorSpeed, 0);
+    digitalWrite(RF, LOW);
+    digitalWrite(RB, HIGH);
+    digitalWrite(LF, HIGH);
+    digitalWrite(LB, LOW);
+}
+
+void turnRightSlight() {
+    analogWrite(leftMotorSpeed, TURN_SPEED1);
+    analogWrite(rightMotorSpeed, 0);
+    digitalWrite(RF, HIGH);
+    digitalWrite(RB, LOW);
+    digitalWrite(LF, HIGH);
+    digitalWrite(LB, LOW);
+}
